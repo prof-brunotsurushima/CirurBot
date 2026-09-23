@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CIRURBOT - Simulação Cirúrgica</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800&family=Rajdhani:wght@500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ─── Reset & Base Variables ─── */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-deep: #020b18;
+      --cyan-main: #00d4ff;
+      --cyan-glow: rgba(0, 212, 255, 0.4);
+      --cyan-dark: rgba(0, 212, 255, 0.1);
+      --border-cyan: rgba(0, 212, 255, 0.25);
+      --green-glow: #00ffcc;
+      --text-main: #d0f4ff;
+      --font-title: 'Orbitron', sans-serif;
+      --font-body: 'Rajdhani', sans-serif;
+      --font-mono: 'Share Tech Mono', monospace;
+    }
+
+    body {
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 1rem;
+      background-image: 
+        radial-gradient(circle at 50% 0%, rgba(0, 212, 255, 0.12), transparent 70%),
+        linear-gradient(to bottom, rgba(2, 11, 24, 0.8), rgba(2, 11, 24, 0.95));
+      background-attachment: fixed;
+    }
+
+    /* ─── Layout Container ─── */
+    .app-container {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* ─── Utility & FX Styles ─── */
+    .panel-glass {
+      background: rgba(0, 15, 35, 0.65);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-cyan);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      position: relative;
+    }
+
+    .bg-grid {
+      background-size: 30px 30px;
+      background-image: 
+        linear-gradient(to right, rgba(0, 212, 255, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0, 212, 255, 0.05) 1px, transparent 1px);
+    }
+
+    .text-glow-cyan {
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.6);
+    }
+
+    .text-glow-green {
+      text-shadow: 0 0 10px rgba(0, 255, 204, 0.6);
+    }
+
+    /* ─── Components ─── */
+    /* Avatar Bot Animation */
+    .bot-avatar {
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      background: radial-gradient(circle at 35% 35%, rgba(0,212,255,0.2), #020b18);
+      border: 1.5px solid rgba(0,212,255,0.5);
+      box-shadow: 0 0 20px rgba(0,212,255,0.3);
+      flex-shrink: 0;
+    }
+
+    .bot-avatar.sm { width: 32px; height: 32px; font-size: 1.1rem; }
+    .bot-avatar.md { width: 56px; height: 56px; font-size: 1.8rem; }
+    .bot-avatar.lg { width: 80px; height: 80px; font-size: 2.5rem; }
+
+    .bot-float {
+      animation: float 4s ease-in-out infinite;
+    }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-8px); }
+    }
+
+    /* Radar FX */
+    .radar-sweep {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 1px solid var(--border-cyan);
+      position: relative;
+      overflow: hidden;
+    }
+    .radar-sweep::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: conic-gradient(from 0deg, transparent 0%, transparent 75%, rgba(0, 212, 255, 0.4) 100%);
+      animation: spin 3s linear infinite;
+      border-radius: 50%;
+    }
+    @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    /* Progress Bars */
+    .progress-bar-container {
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(0, 30, 60, 0.6);
+      overflow: hidden;
+    }
+
+    .progress-bar-glow {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4ff, #00ffcc);
+      box-shadow: 0 0 8px rgba(0,212,255,0.6);
+      transition: width 0.4s ease;
+      border-radius: 4px;
+    }
+
+    /* Buttons */
+    .btn-cyber {
+      background: rgba(0, 212, 255, 0.05);
+      border: 1px solid rgba(0, 212, 255, 0.4);
+      color: var(--cyan-main);
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-cyber:hover {
+      background: rgba(0, 212, 255, 0.2);
+      border-color: var(--cyan-main);
+      box-shadow: 0 0 12px rgba(0,212,255,0.3);
+    }
+
+    .btn-accent {
+      background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(0, 255, 204, 0.2));
+      border: 1px solid var(--green-glow);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.8rem;
+      padding: 0.6rem 1rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .btn-accent:hover {
+      box-shadow: 0 0 15px rgba(0, 255, 204, 0.4);
+      transform: translateY(-1px);
+    }
+
+    /* Navigation Bar */
+    .nav-tabs {
+      display: flex;
+      gap: 0.5rem;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .nav-tab-btn {
+      background: rgba(0, 15, 35, 0.8);
+      border: 1px solid var(--border-cyan);
+      color: rgba(0, 212, 255, 0.6);
+      font-family: var(--font-title);
+      font-size: 0.7rem;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .nav-tab-btn.active {
+      color: var(--cyan-main);
+      border-color: var(--cyan-main);
+      background: rgba(0, 212, 255, 0.15);
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+    }
+
+    /* Chat Bubbles */
+    .chat-bubble-bot {
+      background: rgba(0, 40, 70, 0.6);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      color: var(--text-main);
+      padding: 0.75rem 1rem;
+      border-radius: 0px 12px 12px 12px;
+      font-size: 0.9rem;
+      max-width: 85%;
+      line-height: 1.4;
+    }
+    .chat-bubble-user {
+      background: rgba(0, 150, 180, 0.2);
+      border: 1px solid rgba(0, 212, 255, 0.5);
+      color: #fff;
+      padding: 0.75rem 1rem;
+      border-radius: 12px 0px 12px 12px;
+      font-size: 0.9rem;
+      max-width: 85%;
+      line-height: 1.4;
+    }
+
+    /* Typing Animation */
+    .typing-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--cyan-main);
+      border-radius: 50%;
+      display: inline-block;
+      animation: wave 1.3s linear infinite;
+    }
+    .typing-dot:nth-child(2) { animation-delay: -1.1s; }
+    .typing-dot:nth-child(3) { animation-delay: -0.9s; }
+    @keyframes wave {
+      0%, 60%, 100% { transform: initial; }
+      30% { transform: translateY(-6px); }
+    }
+
+    /* Voice Ring Indicator */
+    .voice-ring {
+      position: absolute;
+      border: 2px solid var(--cyan-main);
+      border-radius: 50%;
+      animation: ripple 1.5s cubic-bezier(0.1, 0.8, 0.3, 1) infinite;
+    }
+    .voice-ring:nth-child(2) { animation-delay: 0.3s; }
+    .voice-ring:nth-child(3) { animation-delay: 0.6s; }
+    @keyframes ripple {
+      0% { width: 10px; height: 10px; opacity: 1; }
+      100% { width: 50px; height: 50px; opacity: 0; }
+    }
+
+    /* Checklist & Quiz Options */
+    .checklist-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.6rem;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 212, 255, 0.1);
+      background: rgba(0, 20, 40, 0.3);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .checklist-item:hover {
+      background: rgba(0, 212, 255, 0.05);
+      border-color: rgba(0, 212, 255, 0.3);
+    }
+
+    .quiz-option {
+      width: 100%;
+      text-align: left;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      background: rgba(0, 20, 40, 0.4);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      color: var(--text-main);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .quiz-option:hover:not(:disabled) {
+      background: rgba(0, 212, 255, 0.1);
+      border-color: var(--cyan-main);
+    }
+    .quiz-option.correct {
+      background: rgba(0, 255, 204, 0.15) !important;
+      border-color: var(--green-glow) !important;
+      color: var(--green-glow);
+    }
+    .quiz-option.wrong {
+      background: rgba(255, 50, 50, 0.15) !important;
+      border-color: #ff3232 !important;
+      color: #ff8080;
+    }
+
+    /* Step Cards */
+    .step-card {
+      padding: 1rem;
+      border-radius: 8px;
+      border: 1px solid rgba(0, 212, 255, 0.15);
+      background: rgba(0, 15, 30, 0.4);
+      transition: all 0.2s;
+    }
+    .step-card.active-step {
+      border-color: var(--cyan-main);
+      background: rgba(0, 212, 255, 0.08);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.1);
+    }
+    .step-card.completed-step {
+      border-color: rgba(0, 255, 204, 0.3);
+    }
+
+    /* Status Badge */
+    .status-badge {
+      padding: 0.5rem;
+      border-radius: 4px;
+      border: 1px solid;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      background: rgba(0, 10, 25, 0.6);
+    }
+    .status-badge.cyan { border-color: rgba(0, 212, 255, 0.3); color: #80eaff; }
+    .status-badge.green { border-color: rgba(0, 255, 204, 0.3); color: #80ffe5; }
+    .status-badge.amber { border-color: rgba(255, 191, 0, 0.3); color: #ffd680; }
+
+    /* Structural Grid System */
+    .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    .grid-4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
+    @media (min-width: 640px) {
+      .grid-4 { grid-template-columns: repeat(4, 1fr); }
+      .grid-3-sm { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- Header Navigation -->
+    <nav class="nav-tabs" id="navTabs">
+      <button class="nav-tab-btn active" data-tab="painel">PAINEL</button>
+      <button class="nav-tab-btn" data-tab="chat">CHAT AI</button>
+      <button class="nav-tab-btn" data-tab="instrumentos">INSTRUMENTOS</button>
+      <button class="nav-tab-btn" data-tab="checklist">CHECKLIST</button>
+      <button class="nav-tab-btn" data-tab="quiz">QUIZ</button>
+      <button class="nav-tab-btn" data-tab="etapas">ETAPAS</button>
+    </nav>
+
+    <!-- Content Screen Area -->
+    <main id="tabContent"></main>
+  </div>
+
+  <script>
+    // ─── DATA SOURCES ──────────────────────────────────────────────────────────
+    const CHECKLIST_ITEMS = [
+      { id: 1, label: 'Bisturi nº 22', category: 'Instrumental de corte', checked: false },
+      { id: 2, label: 'Tesoura de Metzenbaum', category: 'Instrumental de corte', checked: false },
+      { id: 3, label: 'Pinça hemostática Kelly', category: 'Instrumental de apreensão', checked: false },
+      { id: 4, label: 'Pinça de Allis', category: 'Instrumental de apreensão', checked: false },
+      { id: 5, label: 'Afastador de Farabeuf', category: 'Afastadores', checked: false },
+      { id: 6, label: 'Afastador de Richardson', category: 'Afastadores', checked: false },
+      { id: 7, label: 'Porta-agulha de Mathieu', category: 'Sutura', checked: false },
+      { id: 8, label: 'Fio de sutura PDS 3-0', category: 'Sutura', checked: false },
+      { id: 9, label: 'Gazes estéreis (20 unid.)', category: 'Materiais', checked: false },
+      { id: 10, label: 'Campo cirúrgico estéril', category: 'Materiais', checked: false },
+      { id: 11, label: 'Electrocautério bipolar', category: 'Eletrocirurgia', checked: false },
+      { id: 12, label: 'Aspirador cirúrgico', category: 'Eletrocirurgia', checked: false },
+      { id: 13, label: 'Grampeador linear cortante', category: 'Grampeadores', checked: false },
+      { id: 14, label: 'Grampeador circular 25mm', category: 'Grampeadores', checked: false },
+      { id: 15, label: 'Trocáter 5mm (×3)', category: 'Laparoscopia', checked: false },
+      { id: 16, label: 'Trocáter 12mm (×2)', category: 'Laparoscopia', checked: false },
+      { id: 17, label: 'Câmera laparoscópica 4K', category: 'Laparoscopia', checked: false },
+      { id: 18, label: 'Insuflador CO₂', category: 'Laparoscopia', checked: false },
+    ];
+
+    const QUIZ = [
+      {
+        q: 'Qual é o IMC mínimo recomendado pelo CFM para indicação cirúrgica bariátrica sem comorbidades?',
+        options: ['35 kg/m²', '40 kg/m²', '45 kg/m²', '30 kg/m²'],
+        correct: 1,
+        explanation: 'O CFM recomenda IMC ≥ 40 kg/m² sem comorbidades, ou ≥ 35 kg/m² com comorbidades graves.',
+      },
+      {
+        q: 'Na cirurgia de bypass gástrico em Y-de-Roux, qual é o volume aproximado do pouch gástrico?',
+        options: ['50–100 ml', '15–30 ml', '150–200 ml', '5–10 ml'],
+        correct: 1,
+        explanation: 'O pouch gástrico no bypass tem volume de 15 a 30 ml para limitar a ingestão alimentar.',
+      },
+      {
+        q: 'Qual complicação pós-operatória imediata é mais grave nas primeiras 48h após bypass gástrico?',
+        options: ['Náusea leve', 'Fístula anastomótica', 'Constipação', 'Refluxo'],
+        correct: 1,
+        explanation: 'A fístula anastomótica é a complicação mais grave e pode ser fatal se não tratada rapidamente.',
+      },
+      {
+        q: 'Qual técnica bariátrica é considerada puramente restritiva, sem componente disabsortivo?',
+        options: ['Bypass gástrico (RYGB)', 'Sleeve gástrico', 'Derivação biliopancreática', 'Duodenal switch'],
+        correct: 1,
+        explanation: 'O sleeve gástrico (gastrectomia vertical) é uma técnica puramente restritiva que remove ~80% do estômago.',
+      },
+      {
+        q: 'Qual é a pressão de insuflação de CO₂ recomendada no pneumoperitônio para cirurgia bariátrica laparoscópica?',
+        options: ['5–8 mmHg', '12–15 mmHg', '20–25 mmHg', '30 mmHg'],
+        correct: 1,
+        explanation: 'A pressão padrão de insuflação é 12–15 mmHg, garantindo visibilidade sem comprometer a ventilação.',
+      },
+    ];
+
+    const INITIAL_STEPS = [
+      { title: 'Posicionamento e preparo', desc: 'Paciente em decúbito dorsal, Trendelenburg reverso 30°. Antissepsia com PVPI. Instalação de campos cirúrgicos estéreis.', duration: '15 min', status: 'active' },
+      { title: 'Acesso laparoscópico', desc: 'Inserção de trocáter óptico 12mm na região umbilical. Criação do pneumoperitônio com CO₂ a 15 mmHg. Posicionamento dos demais trocáteres.', duration: '20 min', status: 'pending' },
+      { title: 'Confecção do pouch gástrico', desc: 'Secção do estômago com grampeador linear cortante. Criação do pouch de 15–30 ml. Hemostasia por eletrocauterização.', duration: '45 min', status: 'pending' },
+      { title: 'Anastomose gastrojejunal', desc: 'Confecção da anastomose em Y-de-Roux. Alça alimentar de 150 cm. Teste de estanqueidade com azul de metileno.', duration: '60 min', status: 'pending' },
+      { title: 'Fechamento e curativo', desc: 'Revisão da hemostasia. Retirada dos trocáteres sob visão direta. Sutura da aponeurose. Curativo compressivo estéril.', duration: '20 min', status: 'pending' },
+    ];
+
+    const BOT_RESPONSES = {
+      default: 'Olá! Sou o CIRURBOT, seu assistente de simulação cirúrgica. Posso ajudar com informações sobre o procedimento, instrumentais, checklist ou etapas da cirurgia bariátrica.',
+      ola: 'Olá, cirurgião! Estou pronto para apoiar sua simulação. Qual aspecto do procedimento deseja explorar?',
+      bypass: 'O bypass gástrico em Y-de-Roux é o padrão ouro da cirurgia bariátrica. Combina restrição (pouch de 15–30 ml) com má absorção leve. Taxa de remissão de diabetes tipo 2: até 80%.',
+      sleeve: 'O sleeve gástrico remove aproximadamente 80% do estômago, criando um tubo gástrico. É uma técnica restritiva pura, sem anastomose intestinal, com menor risco cirúrgico.',
+      instrumentos: 'Para cirurgia bariátrica laparoscópica são essenciais: trocáteres 5mm e 12mm, grampeadores lineares cortantes, câmera 4K, insuflador CO₂ e pinças laparoscópicas de trabalho.',
+      anestesia: 'A cirurgia bariátrica requer anestesia geral com intubação. Atenção especial ao posicionamento, ventilação protetora e ajuste de doses por peso ideal, não peso real.',
+      complicacoes: 'Complicações precoces incluem: fístula anastomótica (0,5–2%), hemorragia, TVP e infecção. Monitorar febre, taquicardia e dor abdominal no pós-operatório imediato.',
+      checklist: 'O checklist de segurança cirúrgica (WHO Surgical Safety Checklist) é obrigatório. Confirme: identidade do paciente, lateralidade, alergias, esterilidade dos campos e instrumentais.',
+      passos: 'As 5 etapas principais são: 1. Posicionamento; 2. Acesso laparoscópico; 3. Confecção do pouch; 4. Anastomose gastrojejunal; 5. Fechamento. Devo detalhar alguma delas?',
+    };
+
+    // ─── STATE MANAGEMENT ────────────────────────────────────────────────────
+    const state = {
+      currentTab: 'painel',
+      checklist: CHECKLIST_ITEMS,
+      steps: INITIAL_STEPS,
+      quizScore: 0,
+      quizCurrent: 0,
+      quizSelected: null,
+      quizFinished: false,
+      chatMessages: [
+        { role: 'bot', text: BOT_RESPONSES.default, time: getCurrentTime() }
+      ],
+      chatTyping: false,
+      chatListening: false,
+      expandedInstrumentCategory: null
+    };
+
+    // ─── UTILITIES ───────────────────────────────────────────────────────────
+    function getCurrentTime() {
+      return new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    function getBotResponse(input) {
+      const lower = input.toLowerCase();
+      for (const key of Object.keys(BOT_RESPONSES)) {
+        if (key !== 'default' && lower.includes(key)) return BOT_RESPONSES[key];
+      }
+      return BOT_RESPONSES.default;
+    }
+
+    function speak(text) {
+      if (!('speechSynthesis' in window)) return;
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text);
+      utter.lang = 'pt-BR';
+      utter.rate = 0.95;
+      utter.pitch = 0.85;
+      window.speechSynthesis.speak(utter);
+    }
+
+    // ─── RENDER ENGINE ───────────────────────────────────────────────────────
+    function renderApp() {
+      const main = document.getElementById('tabContent');
+      
+      // Update Navigation Tab Active State
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === state.currentTab);
+      });
+
+      // Render Active Tab Content
+      switch (state.currentTab) {
+        case 'painel': main.innerHTML = renderPainel(); break;
+        case 'chat': main.innerHTML = renderChat(); attachChatEvents(); break;
+        case 'instrumentos': main.innerHTML = renderInstrumentos(); break;
+        case 'checklist': main.innerHTML = renderChecklist(); break;
+        case 'quiz': main.innerHTML = renderQuiz(); break;
+        case 'etapas': main.innerHTML = renderEtapas(); break;
+      }
+    }
+
+    function navigateTo(tab) {
+      state.currentTab = tab;
+      renderApp();
+    }
+
+    // ─── TAB TEMPLATES ───────────────────────────────────────────────────────
+
+    // 1. PAINEL TAB
+    function renderPainel() {
+      const doneSteps = state.steps.filter(s => s.status === 'done').length;
+      const checkedPct = Math.round((state.checklist.filter(c => c.checked).length / state.checklist.length) * 100);
+      const activeStep = state.steps.find(s => s.status === 'active');
+      const stepsPct = Math.round((doneSteps / state.steps.length) * 100);
+      const quizPct = Math.round((state.quizScore / (QUIZ.length * 10)) * 100);
+
+      return `
+        <div style="display: flex; flex-direction: column; gap: 1.25rem;">
+          <!-- Header -->
+          <div class="panel-glass bg-grid" style="padding: 1.5rem; border-radius: 0.75rem;">
+            <div style="display: flex; align-items: center; gap: 1.25rem;">
+              <div class="bot-avatar lg bot-float">🤖</div>
+              <div>
+                <div class="text-glow-cyan" style="font-family: var(--font-title); font-size: 1.5rem; font-weight: bold; color: var(--cyan-main);">CIRURBOT</div>
+                <div style="font-family: var(--font-mono); font-size: 0.75rem; color: rgba(0, 212, 255, 0.7); margin-top: 0.1rem;">Assistente de apoio à simulação cirúrgica</div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
+                  <span style="width: 8px; height: 8px; border-radius: 50%; background-color: var(--green-glow); box-shadow: 0 0 6px #00ffcc;"></span>
+                  <span style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--green-glow);">SISTEMA ONLINE — MODO DEMONSTRAÇÃO</span>
+                </div>
+              </div>
+              <div style="margin-left: auto; display: flex;" class="radar-container">
+                <div class="radar-sweep"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="grid-4">
+            <div class="status-badge cyan">
+              <div style="font-size: 0.6rem; opacity: 0.5; font-family: var(--font-title); text-transform: uppercase;">Procedimento</div>
+              <div style="font-weight: 600; font-size: 0.85rem;">Bariátrica</div>
+            </div>
+            <div class="status-badge cyan">
+              <div style="font-size: 0.6rem; opacity: 0.5; font-family: var(--font-title); text-transform: uppercase;">Etapa atual</div>
+              <div style="font-weight: 600; font-size: 0.85rem;">${doneSteps + 1} / ${state.steps.length}</div>
+            </div>
+            <div class="status-badge ${checkedPct === 100 ? 'green' : 'amber'}">
+              <div style="font-size: 0.6rem; opacity: 0.5; font-family: var(--font-title); text-transform: uppercase;">Checklist</div>
+              <div style="font-weight: 600; font-size: 0.85rem;">${checkedPct}%</div>
+            </div>
+            <div class="status-badge green">
+              <div style="font-size: 0.6rem; opacity: 0.5; font-family: var(--font-title); text-transform: uppercase;">Quiz</div>
+              <div style="font-weight: 600; font-size: 0.85rem;">${state.quizScore} pts</div>
+            </div>
+          </div>
+
+          <!-- Progress Bars -->
+          <div class="panel-glass" style="padding: 1.25rem; border-radius: 0.75rem; display: flex; flex-direction: column; gap: 1rem;">
+            <div style="font-family: var(--font-title); font-size: 0.75rem; color: rgba(0,212,255,0.7); letter-spacing: 2px; text-transform: uppercase;">Progresso geral</div>
+            
+            <div>
+              <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.3rem;">
+                <span style="color: var(--cyan-main);">Checklist de materiais</span>
+                <span>${checkedPct}%</span>
+              </div>
+              <div class="progress-bar-container"><div class="progress-bar-glow" style="width: ${checkedPct}%;"></div></div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.3rem;">
+                <span style="color: var(--cyan-main);">Etapas concluídas</span>
+                <span>${stepsPct}%</span>
+              </div>
+              <div class="progress-bar-container"><div class="progress-bar-glow" style="width: ${stepsPct}%;"></div></div>
+            </div>
+
+            <div>
+              <div style="display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 0.75rem; margin-bottom: 0.3rem;">
+                <span style="color: var(--cyan-main);">Pontuação do quiz</span>
+                <span>${quizPct}%</span>
+              </div>
+              <div class="progress-bar-container"><div class="progress-bar-glow" style="width: ${quizPct}%;"></div></div>
+            </div>
+          </div>
+
+          <!-- Active Step -->
+          ${activeStep ? `
+            <div class="panel-glass" style="padding: 1.25rem; border-radius: 0.75rem; border-color: rgba(0,212,255,0.25);">
+              <div style="font-family: var(--font-title); font-size: 0.65rem; color: rgba(0,212,255,0.7); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0.5rem;">Etapa em andamento</div>
+              <div style="font-weight: 600; color: #d0f4ff;">${activeStep.title}</div>
+              <div style="font-size: 0.85rem; color: rgba(0,212,255,0.7); margin-top: 0.25rem;">${activeStep.desc}</div>
+              <div style="font-family: var(--font-mono); font-size: 0.75rem; color: var(--green-glow); margin-top: 0.5rem;">⏱ Duração estimada: ${activeStep.duration}</div>
+            </div>
+          ` : ''}
+
+          <!-- Quick Navigation Actions -->
+          <div class="grid-2 grid-3-sm">
+            <button class="btn-cyber" style="text-align: left;" onclick="navigateTo('chat')">💬 Consultar robô</button>
+            <button class="btn-cyber" style="text-align: left;" onclick="navigateTo('checklist')">☑️ Ver checklist</button>
+            <button class="btn-cyber" style="text-align: left;" onclick="navigateTo('quiz')">❓ Iniciar quiz</button>
+            <button class="btn-cyber" style="text-align: left;" onclick="navigateTo('etapas')">▣ Ver etapas</button>
+            <button class="btn-cyber" style="text-align: left;" onclick="navigateTo('instrumentos')">⚕ Instrumentos</button>
+          </div>
+
+          <p style="font-size: 0.68rem; color: rgba(0, 212, 255, 0.4); line-height: 1.4; border-top: 1px solid rgba(0, 212, 255, 0.1); padding-top: 0.75rem; font-family: var(--font-mono);">
+            ⚠ A simulação representa apoio tecnológico educacional. As ações exibidas não devem ser usadas como instruções para uma cirurgia real.
+          </p>
+        </div>
+      `;
+    }
+
+    // 2. CHAT TAB
+    function renderChat() {
+      const voiceSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+
+      return `
+        <div style="display: flex; flex-direction: column; gap: 0.75rem; min-height: 60vh;">
+          <!-- Top Bar -->
+          <div class="panel-glass" style="padding: 0.75rem; border-radius: 0.75rem; display: flex; align-items: center; gap: 0.75rem;">
+            <div class="bot-avatar sm">🤖</div>
+            <div>
+              <div style="font-family: var(--font-title); font-size: 0.75rem; font-weight: bold; color: #80eaff;">CIRURBOT AI</div>
+              <div style="font-family: var(--font-mono); font-size: 0.6rem; color: var(--green-glow);">● online</div>
+            </div>
+            <div style="margin-left: auto; display: flex; gap: 0.5rem;">
+              ${voiceSupported ? `
+                <button class="btn-cyber ${state.chatListening ? 'border-red' : ''}" id="btnStartVoice" style="font-size: 0.6rem; padding: 0.4rem 0.6rem;">
+                  ${state.chatListening ? '🔴 ouvindo...' : '🎙️ falar'}
+                </button>
+              ` : ''}
+              <button class="btn-accent" onclick="speak('Olá! Eu sou o CIRURBOT, seu assistente de simulação cirúrgica. Sistema de voz ativo e operacional.')" style="font-size: 0.6rem; padding: 0.4rem 0.6rem;">🔊 testar voz</button>
+            </div>
+          </div>
+
+          <!-- Voice Active Indicator Panel -->
+          ${state.chatListening ? `
+            <div class="panel-glass" style="padding: 1rem; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; gap: 1rem;">
+              <div style="position: relative; width: 48px; height: 48px; display: flex; align-items: center; justify-content: center;">
+                <div class="voice-ring"></div>
+                <div class="voice-ring"></div>
+                <div class="voice-ring"></div>
+                <span style="font-size: 1.25rem; z-index: 10;">🎙️</span>
+              </div>
+              <div>
+                <div style="font-family: var(--font-title); font-size: 0.75rem; color: #80eaff;">Ouvindo...</div>
+                <div style="font-family: var(--font-mono); font-size: 0.6rem; color: rgba(0, 212, 255, 0.6);">Fale sua pergunta em português</div>
+              </div>
+            </div>
+          ` : ''}
+
+          <!-- Chat History -->
+          <div class="panel-glass" id="chatWindow" style="padding: 1rem; border-radius: 0.75rem; flex: 1; overflow-y: auto; max-height: 45vh; display: flex; flex-direction: column; gap: 0.75rem;">
+            ${state.chatMessages.map(m => `
+              <div style="display: flex; ${m.role === 'user' ? 'justify-content: flex-end;' : 'align-items: flex-start; gap: 0.5rem;'}">
+                ${m.role === 'bot' ? '<div class="bot-avatar sm">🤖</div>' : ''}
+                <div>
+                  <div class="${m.role === 'bot' ? 'chat-bubble-bot' : 'chat-bubble-user'}">${m.text}</div>
+                  <div style="font-family: var(--font-mono); font-size: 0.58rem; color: rgba(0,212,255,0.4); margin-top: 0.25rem; padding: 0 0.25rem;">${m.time}</div>
+                </div>
+              </div>
+            `).join('')}
+
+            ${state.chatTyping ? `
+              <div style="display: flex; align-items: flex-start; gap: 0.5rem;">
+                <div class="bot-avatar sm">🤖</div>
+                <div class="chat-bubble-bot" style="display: flex; gap: 0.3rem; align-items: center; padding: 0.75rem;">
+                  <span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span>
+                </div>
+              </div>
+            ` : ''}
+          </div>
+
+          <!-- Quick Suggestions -->
+          <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+            ${['O que é bypass gástrico?', 'Quais os instrumentos?', 'Complicações pós-op', 'Passos da cirurgia'].map(s => `
+              <button class="btn-cyber" style="font-size: 0.65rem; padding: 0.3rem 0.6rem;" onclick="sendChatMessage('${s}')">${s}</button>
+            `).join('')}
+          </div>
+
+          <!-- Message Input -->
+          <div style="display: flex; gap: 0.5rem;">
+            <input type="text" id="chatInput" placeholder="Digite sua pergunta..." 
+              style="flex: 1; padding: 0.6rem 1rem; border-radius: 8px; background: rgba(0, 30, 60, 0.4); border: 1px solid rgba(0,212,255,0.3); color: var(--text-main); font-family: var(--font-mono); font-size: 0.85rem;"
+            />
+            <button class="btn-cyber" id="btnSendChat">Enviar</button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Attach Dynamic Chat Listeners
+    function attachChatEvents() {
+      const input = document.getElementById('chatInput');
+      const btnSend = document.getElementById('btnSendChat');
+      const btnVoice = document.getElementById('btnStartVoice');
+
+      if (input) {
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') sendChatMessage(input.value);
+        });
+      }
+      if (btnSend) {
+        btnSend.addEventListener('click', () => sendChatMessage(input.value));
+      }
+      if (btnVoice) {
+        btnVoice.addEventListener('click', startVoiceRecognition);
+      }
+
+      // Auto-scroll to bottom of chat
+      const chatWin = document.getElementById('chatWindow');
+      if (chatWin) chatWin.scrollTop = chatWin.scrollHeight;
+    }
+
+    function sendChatMessage(text) {
+      if (!text || !text.trim()) return;
+
+      const userText = text.trim();
+      state.chatMessages.push({ role: 'user', text: userText, time: getCurrentTime() });
+      state.chatTyping = true;
+      renderApp();
+
+      setTimeout(() => {
+        const botText = getBotResponse(userText);
+        state.chatMessages.push({ role: 'bot', text: botText, time: getCurrentTime() });
+        state.chatTyping = false;
+        renderApp();
+        speak(botText);
+      }, 1200 + Math.random() * 600);
+    }
+
+    function startVoiceRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+
+      const rec = new SR();
+      rec.lang = 'pt-BR';
+      rec.interimResults = false;
+
+      rec.onstart = () => { state.chatListening = true; renderApp(); };
+      rec.onend = () => { state.chatListening = false; renderApp(); };
+      rec.onresult = (e) => {
+        const transcript = e.results[0][0].transcript;
+        sendChatMessage(transcript);
+      };
+
+      rec.start();
+    }
+
+    // 3. INSTRUMENTOS TAB
+    function renderInstrumentos() {
+      const grupos = [
+        {
+          cat: 'Instrumental de corte', icon: '🔪',
+          items: [
+            { nome: 'Bisturi nº 22', uso: 'Incisão de pele e tecido subcutâneo', material: 'Aço inox cirúrgico grau 440C' },
+            { nome: 'Tesoura de Metzenbaum', uso: 'Dissecção romba de tecidos delicados', material: 'Aço inox com pontas curvas' },
+            { nome: 'Tesoura de Mayo', uso: 'Corte de tecidos resistentes e fios', material: 'Aço inox rígido' },
+          ]
+        },
+        {
+          cat: 'Instrumental de apreensão', icon: '🩺',
+          items: [
+            { nome: 'Pinça hemostática Kelly', uso: 'Controle de sangramento, disseção', material: 'Aço inox ranhado transversalmente' },
+            { nome: 'Pinça de Allis', uso: 'Apreensão de tecidos resistentes', material: 'Aço com dentes de retenção' },
+            { nome: 'Pinça de Babcock', uso: 'Apreensão atraumática de vísceras', material: 'Aço inox com mordente fenestrado' },
+          ]
+        },
+        {
+          cat: 'Grampeadores', icon: '⚙️',
+          items: [
+            { nome: 'Grampeador linear cortante 60mm', uso: 'Secção e grampeamento do estômago', material: 'Aço inox com grampos de titânio' },
+            { nome: 'Grampeador circular 25mm', uso: 'Anastomose gastrojejunal', material: 'Plástico médico + componentes metálicos' },
+          ]
+        },
+        {
+          cat: 'Laparoscopia', icon: '📷',
+          items: [
+            { nome: 'Câmera laparoscópica 4K', uso: 'Visualização intraoperatória HD', material: 'Sensor CMOS 4K, 30fps' },
+            { nome: 'Insuflador CO₂ eletrônico', uso: 'Criação e manutenção do pneumoperitônio', material: 'Fluxo máx. 30 L/min, pressão 0–30 mmHg' },
+            { nome: 'Trocáter 12mm', uso: 'Entrada para grampeadores e câmera', material: 'Plástico médico transparente' },
+          ]
+        }
+      ];
+
+      return `
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="panel-glass" style="padding: 1rem; border-radius: 0.75rem;">
+            <div style="font-family: var(--font-title); font-size: 0.75rem; color: rgba(0, 212, 255, 0.7); letter-spacing: 2px; text-transform: uppercase;">⚕ Instrumentais cirúrgicos</div>
+            <div style="font-size: 0.85rem; color: rgba(0, 212, 255, 0.7); font-family: var(--font-mono); margin-top: 0.2rem;">Cirurgia bariátrica laparoscópica · Bypass gástrico</div>
+          </div>
+
+          ${grupos.map(g => {
+            const isExpanded = state.expandedInstrumentCategory === g.cat;
+            return `
+              <div class="panel-glass" style="border-radius: 0.75rem; overflow: hidden;">
+                <button onclick="toggleInstrumentCategory('${g.cat}')" style="width: 100%; display: flex; align-items: center; justify-content: space-between; padding: 1rem; background: transparent; border: none; cursor: pointer; text-align: left;">
+                  <div style="display: flex; align-items: center; gap: 0.5rem;">
+                    <span>${g.icon}</span>
+                    <span style="font-family: var(--font-title); font-size: 0.75rem; font-weight: bold; color: #80eaff; letter-spacing: 1px; text-transform: uppercase;">${g.cat}</span>
+                    <span style="font-family: var(--font-mono); font-size: 0.6rem; color: rgba(0, 212, 255, 0.5); border: 1px solid rgba(0, 212, 255, 0.2); padding: 0.1rem 0.4rem; border-radius: 4px;">${g.items.length}</span>
+                  </div>
+                  <span style="color: rgba(0, 212, 255, 0.6); font-size: 0.75rem; font-family: var(--font-mono);">${isExpanded ? '▲' : '▼'}</span>
+                </button>
+
+                ${isExpanded ? `
+                  <div style="border-top: 1px solid rgba(0, 212, 255, 0.15);">
+                    ${g.items.map(item => `
+                      <div style="padding: 1rem; border-bottom: 1px solid rgba(0, 212, 255, 0.05);">
+                        <div style="font-weight: 600; font-size: 0.9rem; color: #d0f4ff;">${item.nome}</div>
+                        <div style="font-size: 0.8rem; color: rgba(0, 212, 255, 0.7); margin-top: 0.25rem;">Uso: ${item.uso}</div>
+                        <div style="font-family: var(--font-mono); font-size: 0.65rem; color: rgba(0, 212, 255, 0.4); margin-top: 0.25rem;">Material: ${item.material}</div>
+                      </div>
+                    `).join('')}
+                  </div>
+                ` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function toggleInstrumentCategory(cat) {
+      state.expandedInstrumentCategory = state.expandedInstrumentCategory === cat ? null : cat;
+      renderApp();
+    }
+
+    // 4. CHECKLIST TAB
+    function renderChecklist() {
+      const checked = state.checklist.filter(i => i.checked).length;
+      const pct = Math.round((checked / state.checklist.length) * 100);
+      const categories = [...new Set(state.checklist.map(i => i.category))];
+
+      return `
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <!-- Progress Header -->
+          <div class="panel-glass" style="padding: 1.25rem; border-radius: 0.75rem;">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+              <div style="font-family: var(--font-title); font-size: 0.75rem; color: rgba(0, 212, 255, 0.7); letter-spacing: 2px; text-transform: uppercase;">☑️ Checklist de materiais</div>
+              <div class="text-glow-cyan" style="font-family: var(--font-title); font-size: 1.25rem; font-weight: bold; color: ${pct === 100 ? '#00ffcc' : '#00d4ff'};">${pct}%</div>
+            </div>
+            <div class="progress-bar-container" style="height: 10px;">
+              <div class="progress-bar-glow" style="width: ${pct}%; ${pct === 100 ? 'background: #00ffcc;' : ''}"></div>
+            </div>
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: rgba(0, 212, 255, 0.5); margin-top: 0.5rem;">${checked} de ${state.checklist.length} itens conferidos</div>
+          </div>
+
+          <!-- Groups -->
+          ${categories.map(cat => `
+            <div class="panel-glass" style="padding: 1rem; border-radius: 0.75rem; display: flex; flex-direction: column; gap: 0.5rem;">
+              <div style="font-family: var(--font-title); font-size: 0.65rem; color: rgba(0, 212, 255, 0.6); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0.25rem;">${cat}</div>${state.checklist.filter(i => i.category === cat).map(item => `
+                <div class="checklist-item" onclick="toggleCheckItem(${item.id})">
+                  <div style="width: 20px; height: 20px; border-radius: 4px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; ${item.checked ? 'background: rgba(0,255,204,0.2); border: 1px solid rgba(0,255,204,0.6); box-shadow: 0 0 6px rgba(0,255,100,0.3);' : 'border: 1px solid rgba(0,212,255,0.3);'}">
+                    ${item.checked ? '<span style="color: var(--green-glow); font-size: 0.75rem;">✓</span>' : ''}
+                  </div>
+                  <span style="font-size: 0.85rem; flex: 1; ${item.checked ? 'color: rgba(0, 255, 204, 0.8); text-decoration: line-through;' : 'color: #80eaff;'}">${item.label}</span>
+                  ${item.checked ? '<span style="color: rgba(0, 255, 204, 0.6); font-size: 0.75rem; font-family: var(--font-mono);">OK</span>' : ''}
+                </div>
+              `).join('')}
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function toggleCheckItem(id) {
+      state.checklist = state.checklist.map(item => item.id === id ? { ...item, checked: !item.checked } : item);
+      renderApp();
+    }
+
+    // 5. QUIZ TAB
+    function renderQuiz() {
+      if (state.quizFinished) {
+        const pct = Math.round((state.quizScore / (QUIZ.length * 10)) * 100);
+        return `
+          <div class="panel-glass" style="padding: 2rem; border-radius: 0.75rem; text-align: center; display: flex; flex-direction: column; gap: 1rem;">
+            <div style="font-size: 3rem;">🏆</div>
+            <div class="text-glow-cyan" style="font-family: var(--font-title); font-size: 1.25rem; color: var(--cyan-main);">Quiz concluído!</div>
+            <div style="font-family: var(--font-mono); font-size: 2.25rem; font-weight: bold; color: ${pct >= 80 ? '#00ffcc' : '#00d4ff'};">${state.quizScore} pts</div>
+            <div style="font-family: var(--font-mono); font-size: 0.85rem; color: rgba(0,212,255,0.6);">${pct}% de acerto · ${QUIZ.length} questões</div>
+            <div style="font-size: 0.9rem; color: #80eaff;">
+              ${pct >= 80 ? '🎖 Excelente! Domínio sólido do protocolo bariátrico.' : pct >= 60 ? '📘 Bom resultado! Revise os pontos marcados.' : '🔄 Continue estudando o protocolo cirúrgico.'}
+            </div>
+            <button class="btn-accent" style="margin-top: 0.5rem; padding: 0.75rem 1.5rem;" onclick="restartQuiz()">Reiniciar quiz</button>
+          </div>
+        `;
+      }
+
+      const q = QUIZ[state.quizCurrent];
+
+      return `
+        <div style="display: flex; flex-direction: column; gap: 1rem;">
+          <!-- Progress -->
+          <div class="panel-glass" style="padding: 1rem; border-radius: 0.75rem; display: flex; align-items: center; gap: 1rem;">
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: rgba(0, 212, 255, 0.6);">${state.quizCurrent + 1} / ${QUIZ.length}</div>
+            <div class="progress-bar-container" style="flex: 1; height: 6px;">
+              <div class="progress-bar-glow" style="width: ${(state.quizCurrent / QUIZ.length) * 100}%;"></div>
+            </div>
+            <div style="font-family: var(--font-title); font-size: 0.75rem; color: var(--cyan-main); font-weight: bold;">${state.quizScore} pts</div>
+          </div>
+
+          <!-- Question -->
+          <div class="panel-glass" style="padding: 1.25rem; border-radius: 0.75rem;">
+            <div style="font-family: var(--font-title); font-size: 0.6rem; color: rgba(0, 212, 255, 0.5); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0.75rem;">❓ Questão ${state.quizCurrent + 1}</div>
+            <div style="color: #d0f4ff; font-weight: 600; line-height: 1.5; font-size: 1rem;">${q.q}</div>
+          </div>
+
+          <!-- Options -->
+          <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+            ${q.options.map((opt, i) => {
+              let stateClass = '';
+              if (state.quizSelected !== null) {
+                if (i === q.correct) stateClass = 'correct';
+                else if (i === state.quizSelected) stateClass = 'wrong';
+              }
+              return `
+                <button class="quiz-option ${stateClass}" ${state.quizSelected !== null ? 'disabled' : ''} onclick="handleQuizAnswer(${i})">
+                  <span style="font-family: var(--font-mono); color: rgba(0, 212, 255, 0.5); margin-right: 0.5rem;">${String.fromCharCode(65 + i)}.</span>${opt}
+                </button>
+              `;
+            }).join('')}
+          </div>
+
+          <!-- Explanation & Next Button -->
+          ${state.quizSelected !== null ? `
+            <div class="panel-glass" style="padding: 1rem; border-radius: 0.75rem; border-color: rgba(0,212,255,0.3);">
+              <div style="font-family: var(--font-title); font-size: 0.6rem; color: rgba(0, 212, 255, 0.6); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 0.25rem;">
+                ${state.quizSelected === q.correct ? '✅ Correto!' : '❌ Incorreto'}
+              </div>
+              <div style="font-size: 0.85rem; color: rgba(0, 212, 255, 0.8); line-height: 1.4;">${q.explanation}</div>
+              <button class="btn-cyber" style="margin-top: 0.75rem; width: 100%; text-align: center;" onclick="nextQuizQuestion()">
+                ${state.quizCurrent < QUIZ.length - 1 ? 'Próxima →' : 'Ver resultado'}
+              </button>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function handleQuizAnswer(idx) {
+      if (state.quizSelected !== null) return;
+      state.quizSelected = idx;
+      if (idx === QUIZ[state.quizCurrent].correct) {
+        state.quizScore += 10;
+      }
+      renderApp();
+    }
+
+    function nextQuizQuestion() {
+      if (state.quizCurrent < QUIZ.length - 1) {
+        state.quizCurrent++;
+        state.quizSelected = null;
+      } else {
+        state.quizFinished = true;
+      }
+      renderApp();
+    }
+
+    function restartQuiz() {
+      state.quizCurrent = 0;
+      state.quizSelected = null;
+      state.quizScore = 0;
+      state.quizFinished = false;
+      renderApp();
+    }
+
+    // 6. ETAPAS TAB
+    function renderEtapas() {
+      const hasActive = state.steps.some(s => s.status === 'active');
+      const allDone = state.steps.every(s => s.status === 'done');
+
+      return `
+        <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+          <div class="panel-glass" style="padding: 1rem; border-radius: 0.75rem;">
+            <div style="font-family: var(--font-title); font-size: 0.75rem; color: rgba(0, 212, 255, 0.7); letter-spacing: 2px; text-transform: uppercase;">▣ Etapas da simulação</div>
+            <div style="font-family: var(--font-mono); font-size: 0.75rem; color: rgba(0, 212, 255, 0.5); margin-top: 0.2rem;">Bypass gástrico em Y-de-Roux · Laparoscopia</div>
+          </div>
+
+          ${state.steps.map((s, i) => `
+            <div class="step-card ${s.status === 'active' ? 'active-step' : s.status === 'done' ? 'completed-step' : ''}">
+              <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+                <div style="width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-family: var(--font-title); font-weight: bold; font-size: 0.85rem;
+                  ${s.status === 'done' ? 'background: rgba(0,255,204,0.2); color: var(--green-glow); border: 1px solid rgba(0,255,204,0.4);' :
+                    s.status === 'active' ? 'background: rgba(0,212,255,0.2); color: var(--cyan-main); border: 1px solid rgba(0,212,255,0.5); box-shadow: 0 0 12px rgba(0,212,255,0.3);' :
+                    'background: rgba(0,20,40,0.6); color: rgba(0,212,255,0.3); border: 1px solid rgba(0,212,255,0.1);'}">
+                  ${s.status === 'done' ? '✓' : i + 1}
+                </div>
+                <div style="flex: 1;">
+                  <div style="font-weight: 600; font-size: 0.9rem; ${s.status === 'done' ? 'color: rgba(0,255,204,0.8);' : s.status === 'active' ? 'color: #d0f4ff;' : 'color: rgba(0,212,255,0.4);'}">
+                    ${s.title}
+                  </div>
+                  <div style="font-size: 0.8rem; color: rgba(0,212,255,0.6); margin-top: 0.25rem; line-height: 1.4;">${s.desc}</div>
+                  <div style="font-family: var(--font-mono); font-size: 0.62rem; margin-top: 0.5rem; display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="color: rgba(0,212,255,0.4);">⏱ ${s.duration}</span>
+                    <span style="padding: 0.1rem 0.4rem; border-radius: 4px; border: 1px solid; font-size: 0.6rem;
+                      ${s.status === 'done' ? 'border-color: rgba(0,255,204,0.4); color: var(--green-glow); background: rgba(0,40,30,0.3);' :
+                        s.status === 'active' ? 'border-color: rgba(0,212,255,0.4); color: var(--cyan-main); background: rgba(0,30,60,0.3);' :
+                        'border-color: rgba(0,212,255,0.1); color: rgba(0,212,255,0.2);'}">
+                      ${s.status === 'done' ? 'Concluída' : s.status === 'active' ? 'Em andamento' : 'Aguardando'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+
+          ${hasActive ? `
+            <button class="btn-accent" style="width: 100%; padding: 0.85rem; margin-top: 0.25rem;" onclick="advanceStep()">
+              Avançar para próxima etapa →
+            </button>
+          ` : ''}
+
+          ${allDone ? `
+            <div class="panel-glass" style="padding: 1.25rem; border-radius: 0.75rem; text-align: center; border-color: rgba(0,255,204,0.3);">
+              <div style="font-size: 2rem; margin-bottom: 0.5rem;">🎉</div>
+              <div class="text-glow-green" style="font-family: var(--font-title); font-size: 0.9rem; color: var(--green-glow);">Simulação concluída com sucesso!</div>
+            </div>
+          ` : ''}
+        </div>
+      `;
+    }
+
+    function advanceStep() {
+      const activeIdx = state.steps.findIndex(s => s.status === 'active');
+      if (activeIdx !== -1) {
+        state.steps[activeIdx].status = 'done';
+        if (activeIdx + 1 < state.steps.length) {
+          state.steps[activeIdx + 1].status = 'active';
+        }
+        renderApp();
+      }
+    }
+
+    // ─── INITIALIZATION ───────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', () => {
+      // Setup Navigation Tabs
+      document.getElementById('navTabs').addEventListener('click', (e) => {
+        if (e.target.classList.contains('nav-tab-btn')) {
+          navigateTo(e.target.dataset.tab);
+        }
+      });
+
+      // Initial First Render
+      renderApp();
+    });
+  </script>
+</body>
+</html>
